@@ -1,6 +1,7 @@
 import random
+import string
 
-# ─── Word List ───────────────────────────────────────────────────────────────
+# ─── Word List ─────────────────────────────────────────
 
 WORDS = [
     "python", "hangman", "computer", "science", "engineer",
@@ -8,149 +9,259 @@ WORDS = [
     "iteration", "debugging", "testing", "software", "hardware",
 ]
 
-# ─── Pure Logic Layer (no print statements here) ──────────────────────────────
+# ─── Logic Functions ───────────────────────────────────
 
-def pick_word(words: list[str]) -> str:
-    """Return a random word from the word list."""
+def pick_word(words):
     return random.choice(words)
 
 
-def update_game_state(
-    secret_word: str,
-    guessed_letters: list[str],
-    guess: str,
-    lives: int,
-) -> tuple[list[str], int]:
-    """Process a player's letter guess and update game variables.
+def update_game_state(secret_word, guessed_letters, guess, lives):
 
-    The caller maintains the list of letters that have been guessed so far and
-    the number of remaining lives.  This function normalises the incoming
-    guess to lowercase, ignores duplicates, and decrements ``lives`` when the
-    guess is not present in ``secret_word``.
-
-    Returns a tuple containing the updated list of guessed letters and the
-    possibly adjusted lives count.  The secret word itself is left unchanged;
-    another helper can use the returned ``guessed_letters`` to construct the
-    visible display (e.g. "_ a _ _").
-    """
-    # normalise the guess so that 'A' and 'a' are treated the same
     guess = guess.lower()
 
-    # if the player has already tried this letter do nothing
     if guess in guessed_letters:
         return guessed_letters, lives
 
-    # record the new guess
     guessed_letters = guessed_letters + [guess]
 
-    # lose a life only on incorrect guesses
     if guess not in secret_word:
-        lives -= 1
+        lives = lives - 1
 
     return guessed_letters, lives
 
 
-def build_masked_word(secret_word: str, guessed_letters: list[str]) -> list[str]:
-    """
-    Return a list of characters: revealed letter if guessed, '_' otherwise.
-    No string replacement functions used.
-    """
-    return [ch if ch in guessed_letters else "_" for ch in secret_word]
+def build_masked_word(secret_word, guessed_letters):
+
+    result = []
+
+    for ch in secret_word:
+        if ch in guessed_letters:
+            result.append(ch)
+        else:
+            result.append("_")
+
+    return result
 
 
-def is_win(secret_word: str, guessed_letters: list[str]) -> bool:
-    """True when every letter in secret_word has been guessed."""
-    return all(ch in guessed_letters for ch in secret_word)
+def is_win(secret_word, guessed_letters):
+
+    for ch in secret_word:
+        if ch not in guessed_letters:
+            return False
+
+    return True
 
 
-def is_loss(lives: int) -> bool:
-    """True when the player has no lives remaining."""
-    return lives <= 0
+def is_loss(lives):
+
+    if lives <= 0:
+        return True
+
+    return False
 
 
-def get_wrong_guesses(secret_word: str, guessed_letters: list[str]) -> list[str]:
-    """Return letters that were guessed but are not in the secret word."""
-    return [ch for ch in guessed_letters if ch not in secret_word]
+def get_wrong_guesses(secret_word, guessed_letters):
+
+    wrong = []
+
+    for ch in guessed_letters:
+        if ch not in secret_word:
+            wrong.append(ch)
+
+    return wrong
 
 
-# ─── UI / Display Layer ───────────────────────────────────────────────────────
+# ─── Auto Player ───────────────────────────────────────
 
-def display_state(secret_word: str, guessed_letters: list[str], lives: int) -> None:
+def auto_guess(guessed_letters):
+
+    alphabet = list(string.ascii_lowercase)
+
+    while True:
+
+        guess = random.choice(alphabet)
+
+        if guess not in guessed_letters:
+            return guess
+
+
+# ─── Display Functions ─────────────────────────────────
+
+def display_state(secret_word, guessed_letters, lives):
+
     masked = build_masked_word(secret_word, guessed_letters)
     wrong = get_wrong_guesses(secret_word, guessed_letters)
+
     print("\n" + " ".join(masked))
-    print(f"Lives remaining : {lives}")
-    print(f"Wrong guesses   : {', '.join(wrong) if wrong else 'none'}")
-    print(f"Guessed so far  : {', '.join(sorted(guessed_letters)) if guessed_letters else 'none'}")
+    print("Lives remaining:", lives)
 
-
-def get_guess(guessed_letters: list[str]) -> str:
-    """Prompt until the player enters a valid, new single letter."""
-    while True:
-        raw = input("\nGuess a letter: ").strip().lower()
-        if len(raw) != 1 or not raw.isalpha():
-            print("Please enter a single letter.")
-        elif raw in guessed_letters:
-            print(f"You already guessed '{raw}'. Try another.")
-        else:
-            return raw
-
-
-def display_result(secret_word: str, won: bool) -> None:
-    if won:
-        print(f"\n🎉 You won! The word was '{secret_word}'.")
+    if wrong:
+        print("Wrong guesses:", ", ".join(wrong))
     else:
-        print(f"\n💀 Game over! The word was '{secret_word}'.")
+        print("Wrong guesses: none")
+
+    if guessed_letters:
+        print("Guessed letters:", ", ".join(guessed_letters))
+    else:
+        print("Guessed letters: none")
 
 
-def ask_replay() -> bool:
-    """Return True if the player wants to play again."""
+def get_guess(guessed_letters):
+
+    while True:
+
+        guess = input("\nGuess a letter: ").strip().lower()
+
+        if len(guess) != 1:
+            print("Enter one letter only.")
+
+        elif not guess.isalpha():
+            print("Enter a letter.")
+
+        elif guess in guessed_letters:
+            print("You already guessed that.")
+
+        else:
+            return guess
+
+
+def display_result(secret_word, won):
+
+    if won:
+        print("\nYou won! The word was:", secret_word)
+    else:
+        print("\nGame over. The word was:", secret_word)
+
+
+def ask_replay():
+
     answer = input("\nPlay again? (y/n): ").strip().lower()
-    return answer == "y"
+
+    if answer == "y":
+        return True
+
+    return False
 
 
-# ─── Game Loop (no while True) ────────────────────────────────────────────────
+# ─── Player Game Loop ──────────────────────────────────
 
-def play_turn(secret_word: str, guessed_letters: list[str], lives: int) -> None:
-    """Recursive turn loop — replaces while True."""
+def play_turn(secret_word, guessed_letters, lives):
+
     display_state(secret_word, guessed_letters, lives)
 
     if is_win(secret_word, guessed_letters):
-        display_result(secret_word, won=True)
+        display_result(secret_word, True)
         return
+
     if is_loss(lives):
-        display_result(secret_word, won=False)
+        display_result(secret_word, False)
         return
 
     guess = get_guess(guessed_letters)
-    new_guessed, new_lives = update_game_state(secret_word, guessed_letters, guess, lives)
+
+    new_guessed, new_lives = update_game_state(
+        secret_word,
+        guessed_letters,
+        guess,
+        lives
+    )
 
     if guess in secret_word:
-        print(f"✓ '{guess}' is in the word!")
+        print("Correct guess!")
     else:
-        print(f"✗ '{guess}' is not in the word.")
+        print("Wrong guess!")
 
     play_turn(secret_word, new_guessed, new_lives)
 
 
-def play_game(max_lives: int = 6) -> None:
-    """Start a single game."""
+def play_game(max_lives=6):
+
     secret_word = pick_word(WORDS)
-    print(f"\nNew game! The word has {len(secret_word)} letters. You have {max_lives} lives.")
+
+    print("\nNew game started.")
+    print("Word has", len(secret_word), "letters.")
+
     play_turn(secret_word, [], max_lives)
 
 
-def run(max_lives: int = 6) -> None:
-    """Entry point — supports replay without restarting the program."""
+# ─── Auto Play Loop ────────────────────────────────────
+
+def auto_play_turn(secret_word, guessed_letters, lives):
+
+    display_state(secret_word, guessed_letters, lives)
+
+    if is_win(secret_word, guessed_letters):
+        display_result(secret_word, True)
+        return
+
+    if is_loss(lives):
+        display_result(secret_word, False)
+        return
+
+    guess = auto_guess(guessed_letters)
+
+    print("\nComputer guesses:", guess)
+
+    new_guessed, new_lives = update_game_state(
+        secret_word,
+        guessed_letters,
+        guess,
+        lives
+    )
+
+    if guess in secret_word:
+        print("Correct guess!")
+    else:
+        print("Wrong guess!")
+
+    auto_play_turn(secret_word, new_guessed, new_lives)
+
+
+def auto_play_game(max_lives=6):
+
+    secret_word = pick_word(WORDS)
+
+    print("\nAuto Play Mode")
+    print("Word has", len(secret_word), "letters.")
+
+    auto_play_turn(secret_word, [], max_lives)
+
+
+# ─── Menu ──────────────────────────────────────────────
+
+def choose_mode():
+
+    print("\nChoose mode:")
+    print("1 - Play the game")
+    print("2 - Auto Play")
+
+    choice = input("Enter 1 or 2: ")
+
+    return choice
+
+
+def run(max_lives=6):
+
     print("=== Guess The Word ===")
-    play_game(max_lives)
+
+    mode = choose_mode()
+
+    if mode == "1":
+        play_game(max_lives)
+
+    elif mode == "2":
+        auto_play_game(max_lives)
+
+    else:
+        print("Invalid choice")
+
     if ask_replay():
         run(max_lives)
     else:
-        print("\nThanks for playing. Goodbye!")
+        print("\nGoodbye!")
 
 
-# ─── Entry Point ─────────────────────────────────────────────────────────────
+# ─── Entry Point ───────────────────────────────────────
 
 if __name__ == "__main__":
     run()
